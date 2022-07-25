@@ -7,6 +7,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/tetratelabs/wazero v0.0.0-20220725045815-143b2be39895
 	go.uber.org/atomic v1.9.0
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
 )

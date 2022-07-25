@@ -13,6 +13,7 @@ import (
 	"github.com/Jille/rpcz"
 	"github.com/spf13/pflag"
 	"go.uber.org/atomic"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -58,6 +59,10 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 	log.Printf("%s reported for duty with %d cpus and %d MB RAM", hello.GetHostname(), hello.GetCpus(), hello.GetRamMbAllocatable())
 	var jmtx sync.Mutex
 	var j *activeJob
+	outstandingWork := semaphore.NewWeighted(int64(hello.GetCpus()))
+	if err := outstandingWork.Acquire(ctx, int64(hello.GetCpus())); err != nil {
+		return err
+	}
 	go func() {
 		for {
 			msg, err := stream.Recv()
@@ -68,6 +73,7 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 			jmtx.Lock()
 			j := j
 			jmtx.Unlock()
+			outstandingWork.Release(1)
 			if msg.GetFinishWork() != nil {
 				j.workResponses <- msg.GetFinishWork()
 			} else if msg.GetJobError() != "" {
@@ -77,7 +83,7 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 	}()
 	for {
 		mtx.Lock()
-		for currentJob == j {
+		for currentJob == nil || currentJob == j {
 			cond.Wait()
 		}
 		tmp := currentJob
@@ -101,17 +107,23 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 				numPeasants = m
 			}
 		}
+		outstandingWork.Release(int64(numPeasants))
 		var wg sync.WaitGroup
 		wg.Add(numPeasants)
 		for i := 0; numPeasants > i; i++ {
 			go func() {
 				defer wg.Done()
 				for {
+					if outstandingWork.Acquire(ctx, 1) != nil {
+						return
+					}
 					select {
 					case <-ctx.Done():
+						outstandingWork.Release(1)
 						return
 					case w, ok := <-j.workRequests:
 						if !ok {
+							outstandingWork.Release(1)
 							return
 						}
 						if err := stream.Send(&pb.VolunteerResponse{
@@ -120,6 +132,7 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 							},
 						}); err != nil {
 							cancel()
+							outstandingWork.Release(1)
 							return
 						}
 					}
@@ -127,6 +140,15 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 			}()
 		}
 		wg.Wait()
+		outstandingWork.Acquire(ctx, int64(numPeasants))
+
+		if err := stream.Send(&pb.VolunteerResponse{
+			Resp: &pb.VolunteerResponse_EndJob_{
+				EndJob: &pb.VolunteerResponse_EndJob{},
+			},
+		}); err != nil {
+			return err
+		}
 	}
 }
 
@@ -149,6 +171,12 @@ func (s *service) SubmitJob(stream pb.KingService_SubmitJobServer) error {
 	currentJob = aj
 	cond.Broadcast()
 	mtx.Unlock()
+	defer func() {
+		mtx.Lock()
+		currentJob = nil
+		cond.Broadcast()
+		mtx.Unlock()
+	}()
 	openWork := atomic.NewInt32(0)
 	openWork.Inc() // One extra until the stream is closed.
 	go func() {
@@ -168,7 +196,7 @@ func (s *service) SubmitJob(stream pb.KingService_SubmitJobServer) error {
 		}
 	}()
 	for openWork.Load() > 0 {
-		w := <- aj.workResponses
+		w := <-aj.workResponses
 		openWork.Dec()
 		if err := stream.Send(&pb.SubmitJobResponse{
 			Resp: &pb.SubmitJobResponse_CompletedWork{
@@ -182,8 +210,7 @@ func (s *service) SubmitJob(stream pb.KingService_SubmitJobServer) error {
 }
 
 type activeJob struct {
-	job          *pb.Job
-	workRequests chan *pb.WorkRequest
-
+	job           *pb.Job
+	workRequests  chan *pb.WorkRequest
 	workResponses chan *pb.WorkResponse
 }

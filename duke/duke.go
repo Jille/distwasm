@@ -156,6 +156,10 @@ func (b *baron) runner(ctx context.Context) {
 			return
 		}
 		if err := b.run(ctx); err != nil {
+			if err := ctx.Err(); err != nil {
+				// We don't care about it anymore anyway.
+				return
+			}
 			b.respond(&pb.VolunteerRequest{
 				Req: &pb.VolunteerRequest_JobError{
 					JobError: err.Error(),
@@ -218,6 +222,10 @@ func (b *baron) run(ctx context.Context) error {
 				break waitForWorkLoop
 
 			case <-b.deathCh:
+				if err := ctx.Err(); err != nil {
+					// The peasant is expected to die when the context is cancelled, so we ignore this error.
+					return nil
+				}
 				msg := "Process died while idle ("
 				if err == nil {
 					msg += "exit code 0"
@@ -265,14 +273,12 @@ func (b *baron) run(ctx context.Context) error {
 				})
 				return nil
 			case <-stdout.ch:
-				log.Printf("Baron %p received data from peasant, now %d in buffer", b, stdout.buf.Len())
 				if stdout.buf.Len() < 4 {
 					break
 				}
 				o := stdout.buf.Bytes()
 				l := int(binary.LittleEndian.Uint32(o[:4]))
 				if len(o)-4 < l {
-					log.Printf("Got %d bytes, but not the desired %d", len(o)-4, l)
 					break
 				}
 				o = o[4:4+l]
@@ -291,7 +297,6 @@ func (b *baron) run(ctx context.Context) error {
 				stderr.buf = bytes.Buffer{}
 				break executeWorkLoop
 			case <-stderr.ch:
-				log.Printf("Got some stderr: %q", stderr.buf.String())
 			}
 		}
 	}
@@ -306,7 +311,6 @@ type pokingBuffer struct {
 var _ io.Writer = &pokingBuffer{}
 
 func (p *pokingBuffer) Write(b []byte) (int, error) {
-	log.Printf("pokingBuffer.Write(%q)", string(b))
 	p.buf.Write(b)
 	select {
 	case p.ch <- void{}:

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"log"
 	"os"
