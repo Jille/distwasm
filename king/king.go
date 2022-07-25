@@ -110,6 +110,7 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 		outstandingWork.Release(int64(numPeasants))
 		var wg sync.WaitGroup
 		wg.Add(numPeasants)
+		var sendMtx sync.Mutex
 		for i := 0; numPeasants > i; i++ {
 			go func() {
 				defer wg.Done()
@@ -126,15 +127,18 @@ func (s *service) Volunteer(stream pb.KingService_VolunteerServer) error {
 							outstandingWork.Release(1)
 							return
 						}
+						sendMtx.Lock()
 						if err := stream.Send(&pb.VolunteerResponse{
 							Resp: &pb.VolunteerResponse_StartWork{
 								StartWork: w,
 							},
 						}); err != nil {
+							sendMtx.Unlock()
 							cancel()
 							outstandingWork.Release(1)
 							return
 						}
+						sendMtx.Unlock()
 					}
 				}
 			}()
