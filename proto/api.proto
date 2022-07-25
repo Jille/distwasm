@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package com.github.Jille.distwasm;
+
+option go_package = "github.com/Jille/distwasm/proto";
+
+service KingService {
+	rpc Volunteer(stream VolunteerRequest) returns (stream VolunteerResponse) {}
+	rpc SubmitJob(stream SubmitJobRequest) returns (stream SubmitJobResponse) {}
+}
+
+message VolunteerRequest {
+	message Hello {
+		string hostname = 1;
+		int32 cpus = 2;
+		int32 ram_mb_allocatable = 3;
+	}
+	oneof req {
+		Hello hello = 1;
+		WorkResponse finish_work = 2;
+		string job_error = 3;
+	}
+}
+
+message VolunteerResponse {
+	message EndJob {
+	}
+	oneof resp {
+		Job start_job = 1;
+		WorkRequest start_work = 2;
+		EndJob end_job = 3;
+	}
+}
+
+message Job {
+	string project_name = 1;
+	bytes wasm = 2;
+	int32 num_work = 3;
+	int32 min_ram_mb = 4;
+	bool one_per_machine = 5;
+}
+
+message SubmitJobRequest {
+	oneof req {
+		Job job = 1;
+		WorkRequest add_work = 2;
+	}
+}
+
+message SubmitJobResponse {
+	oneof resp {
+		WorkResponse completed_work = 2;
+	}
+}
+
+message WorkRequest {
+	int32 id = 1;
+	bytes data = 2;
+}
+
+message WorkResponse {
+	int32 id = 1;
+	string error_message = 2;
+	bytes result = 3;
+}
