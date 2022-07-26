@@ -19,6 +19,7 @@ import (
 	"github.com/Jille/rpcz"
 	"github.com/spf13/pflag"
 	"google.golang.org/grpc"
+	"golang.org/x/exp/slices"
 )
 
 type void = struct{}
@@ -175,12 +176,13 @@ func (b *baron) run(ctx context.Context) error {
 	defer cancel()
 	stdout := &pokingBuffer{
 		ctx: ctx,
-		ch:  make(chan void),
+		ch:  make(chan []byte),
 	}
 	stderr := &pokingBuffer{
 		ctx: ctx,
-		ch:  make(chan void),
+		ch:  make(chan []byte),
 	}
+	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, "../peasant/peasant")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -208,35 +210,38 @@ func (b *baron) run(ctx context.Context) error {
 waitForReadyLoop:
 	for {
 		select {
-			case <-b.deathCh:
-				if err := ctx.Err(); err != nil {
-					// The peasant is expected to die when the context is cancelled, so we ignore this error.
-					return nil
-				}
-				msg := "Process died when starting ("
-				if err == nil {
-					msg += "exit code 0"
-				} else {
-					msg += err.Error()
-				}
-				msg += ")"
-				if e := stderr.buf.String(); e != "" {
-					msg += "\n\n" + e
-				}
-				return errors.New(msg)
+		case <-b.deathCh:
+			if err := ctx.Err(); err != nil {
+				// The peasant is expected to die when the context is cancelled, so we ignore this error.
+				return nil
+			}
+			msg := "Process died when starting ("
+			if err == nil {
+				msg += "exit code 0"
+			} else {
+				msg += err.Error()
+			}
+			msg += ")"
+			if e := stderrBuf.String(); e != "" {
+				msg += "\n\n" + e
+			}
+			return errors.New(msg)
 
-			case <-stdout.ch:
-				if stdout.buf.Len() < 4 {
-					break
-				}
-				b := stdout.buf.Bytes()
-				if !bytes.Equal(b, []byte{0, 0, 0, 0}) {
-					return fmt.Errorf("unexpected data on stdout when starting: %q", string(b))
-				}
-				break waitForReadyLoop
+		case p := <-stdout.ch:
+			stdoutBuf.Write(p)
+			if stdoutBuf.Len() < 4 {
+				break
+			}
+			b := stdoutBuf.Bytes()
+			if !bytes.Equal(b, []byte{0, 0, 0, 0}) {
+				return fmt.Errorf("unexpected data on stdout when starting: %q", string(b))
+			}
+			stdoutBuf.Reset()
+			break waitForReadyLoop
 
-			case <-stderr.ch:
-				return fmt.Errorf("unexpected data on stderr when starting: %q", stderr.buf.String())
+		case p := <-stderr.ch:
+			stderrBuf.Write(p)
+			return fmt.Errorf("unexpected data on stderr when starting: %q", stderrBuf.String())
 		}
 	}
 
@@ -261,27 +266,21 @@ waitForReadyLoop:
 					// The peasant is expected to die when the context is cancelled, so we ignore this error.
 					return nil
 				}
-				msg := "Process died while idle ("
+				msg := "Process died while idle without output ("
 				if err == nil {
 					msg += "exit code 0"
 				} else {
 					msg += err.Error()
 				}
 				msg += ")"
-				if e := stderr.buf.String(); e != "" {
-					msg += "\n\n" + e
-				}
 				return errors.New(msg)
-			case <-stdout.ch:
-				if stdout.buf.Len() == 0 {
-					break
-				}
-				return fmt.Errorf("unexpected data on stdout while idle: %q", stdout.buf.String())
-			case <-stderr.ch:
-				if stderr.buf.Len() == 0 {
-					break
-				}
-				return fmt.Errorf("unexpected data on stderr while idle: %q", stderr.buf.String())
+
+			case p := <-stdout.ch:
+				stdoutBuf.Write(p)
+				return fmt.Errorf("unexpected data on stdout while idle: %q", stdoutBuf.String())
+			case p := <-stderr.ch:
+				stderrBuf.Write(p)
+				return fmt.Errorf("unexpected data on stderr while idle: %q", stderrBuf.String())
 			}
 		}
 
@@ -290,7 +289,7 @@ waitForReadyLoop:
 			select {
 			case err := <-b.deathCh:
 				var msg string
-				if e := stderr.buf.String(); e != "" {
+				if e := stderrBuf.String(); e != "" {
 					msg += e + "\n\n"
 				}
 				if err == nil {
@@ -307,31 +306,34 @@ waitForReadyLoop:
 					},
 				})
 				return nil
-			case <-stdout.ch:
-				if stdout.buf.Len() < 4 {
+			case p := <-stdout.ch:
+				stdoutBuf.Write(p)
+				log.Printf("Got some bytes from the peasant: %d", stdoutBuf.Len())
+				if stdoutBuf.Len() < 4 {
 					break
 				}
-				o := stdout.buf.Bytes()
+				o := stdoutBuf.Bytes()
 				l := int(binary.LittleEndian.Uint32(o[:4]))
 				if len(o)-4 < l {
 					break
 				}
-				o = o[4:4+l]
+				o = o[4 : 4+l]
 				log.Printf("Reporting job completion")
 				b.respond(&pb.VolunteerRequest{
 					Req: &pb.VolunteerRequest_FinishWork{
 						FinishWork: &pb.WorkResponse{
 							Id:           activeWork.Id,
-							ErrorMessage: stderr.buf.String(),
+							ErrorMessage: stderrBuf.String(),
 							Result:       o,
 						},
 					},
 				})
 				activeWork = nil
-				stdout.buf = bytes.Buffer{}
-				stderr.buf = bytes.Buffer{}
+				stdoutBuf.Reset()
+				stderrBuf.Reset()
 				break executeWorkLoop
-			case <-stderr.ch:
+			case p := <-stderr.ch:
+				stderrBuf.Write(p)
 			}
 		}
 	}
@@ -339,16 +341,14 @@ waitForReadyLoop:
 
 type pokingBuffer struct {
 	ctx context.Context
-	buf bytes.Buffer
-	ch  chan void
+	ch  chan []byte
 }
 
 var _ io.Writer = &pokingBuffer{}
 
 func (p *pokingBuffer) Write(b []byte) (int, error) {
-	p.buf.Write(b)
 	select {
-	case p.ch <- void{}:
+	case p.ch <- slices.Clone(b):
 	case <-p.ctx.Done():
 	}
 	return len(b), nil
