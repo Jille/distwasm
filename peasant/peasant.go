@@ -55,6 +55,10 @@ func main() {
 
 	f := mod.ExportedFunction("processStdio")
 
+	if _, err := os.Stdout.Write([]byte{0, 0, 0, 0}); err != nil {
+		log.Fatalf("Failed to signal readyness: %v", err)
+	}
+
 	for {
 		var b [4]byte
 		if _, err := io.ReadFull(os.Stdin, b[:]); err != nil {

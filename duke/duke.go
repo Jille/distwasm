@@ -205,6 +205,41 @@ func (b *baron) run(ctx context.Context) error {
 		b.deathCh <- cmd.Wait()
 	}()
 
+waitForReadyLoop:
+	for {
+		select {
+			case <-b.deathCh:
+				if err := ctx.Err(); err != nil {
+					// The peasant is expected to die when the context is cancelled, so we ignore this error.
+					return nil
+				}
+				msg := "Process died when starting ("
+				if err == nil {
+					msg += "exit code 0"
+				} else {
+					msg += err.Error()
+				}
+				msg += ")"
+				if e := stderr.buf.String(); e != "" {
+					msg += "\n\n" + e
+				}
+				return errors.New(msg)
+
+			case <-stdout.ch:
+				if stdout.buf.Len() < 4 {
+					break
+				}
+				b := stdout.buf.Bytes()
+				if !bytes.Equal(b, []byte{0, 0, 0, 0}) {
+					return fmt.Errorf("unexpected data on stdout when starting: %q", string(b))
+				}
+				break waitForReadyLoop
+
+			case <-stderr.ch:
+				return fmt.Errorf("unexpected data on stderr when starting: %q", stderr.buf.String())
+		}
+	}
+
 	var activeWork *pb.WorkRequest
 
 	for {
