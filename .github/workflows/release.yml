@@ -45,16 +45,21 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-golang-
     - name: Build
-      run: go build ./...
+      run: go build -v ./...
       env:
         CGO_ENABLED: 0
-    - name: Upload golang binaries for release
+    - name: Upload king golang binary for release
       uses: actions/upload-artifact@v3
       with:
         name: golang_bins
-        path: |
-          king/king
-          duke/duke
+        path: king/king
+        if-no-files-found: error
+        retention-days: 1
+    - name: Upload duke golang binary for release
+      uses: actions/upload-artifact@v3
+      with:
+        name: golang_bins
+        path: duke/duke
         if-no-files-found: error
         retention-days: 1
 
