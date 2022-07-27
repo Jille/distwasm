@@ -9,7 +9,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_rust:
+  release_build_rust:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -27,7 +27,7 @@ jobs:
         if-no-files-found: error
         retention-days: 1
 
-  build_golang:
+  release_build_golang:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -44,29 +44,27 @@ jobs:
         key: release-${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-golang-
-    - name: Build
-      run: go build -v ./...
+    - run: mkdir bins
+    - name: Build king
+      run: go build -v -o bins/king ./king
       env:
         CGO_ENABLED: 0
-    - name: Upload king golang binary for release
+    - name: Build duke
+      run: go build -v -o bins/duke ./duke
+      env:
+        CGO_ENABLED: 0
+    - name: Upload golang binaries for release
       uses: actions/upload-artifact@v3
       with:
         name: golang_bins
-        path: king/king
-        if-no-files-found: error
-        retention-days: 1
-    - name: Upload duke golang binary for release
-      uses: actions/upload-artifact@v3
-      with:
-        name: golang_bins
-        path: duke/duke
+        path: bins/
         if-no-files-found: error
         retention-days: 1
 
   create_release:
     needs:
-      - build_rust
-      - build_golang
+      - release_build_rust
+      - release_build_golang
     runs-on: ubuntu-latest
     steps:
     - name: Download rust binary
