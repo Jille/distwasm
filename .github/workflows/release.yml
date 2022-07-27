@@ -77,6 +77,7 @@ jobs:
       with:
         name: golang_bins
         path: _publish/
+    - run: mv bins/rustpeasant bins/peasant
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
