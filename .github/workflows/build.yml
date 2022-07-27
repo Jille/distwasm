@@ -13,6 +13,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: "rustpeasant -> target"
     - name: Build
       run: cargo build --verbose
       working-directory: rustpeasant
@@ -21,6 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Setup Golang
+      uses: actions/setup-go@v3
+      with:
+        go-version: ~1.18
     - name: Setup Golang caches
       uses: actions/cache@v3
       with:
