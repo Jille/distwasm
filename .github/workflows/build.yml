@@ -38,4 +38,3 @@ jobs:
           ${{ runner.os }}-golang-
     - name: Build
       run: go build ./...
-      

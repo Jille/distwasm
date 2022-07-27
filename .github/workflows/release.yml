@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_rust:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: "rustpeasant -> target"
+    - name: Build
+      run: cargo build --verbose --release
+      working-directory: rustpeasant
+    - name: Upload rust peasant binary for release
+      uses: actions/upload-artifact@v3
+      with:
+        name: rust_peasant
+        path: rustpeasant/target/release/rustpeasant
+        if-no-files-found: error
+        retention-days: 1
+
+  build_golang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup Golang
+      uses: actions/setup-go@v3
+      with:
+        go-version: ~1.18
+    - name: Setup Golang caches
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: release-${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-golang-
+    - name: Build
+      run: go build ./...
+      env:
+        CGO_ENABLED: 0
+    - name: Upload golang binaries for release
+      uses: actions/upload-artifact@v3
+      with:
+        name: golang_bins
+        path: |
+          king/king
+          duke/duke
+        if-no-files-found: error
+        retention-days: 1
+
+  create_release:
+    needs:
+      - build_rust
+      - build_golang
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download rust binary
+      uses: actions/download-artifact@v3
+      with:
+        name: rust_peasant
+        path: _publish/
+    - name: Download golang binaries
+      uses: actions/download-artifact@v3
+      with:
+        name: golang_bins
+        path: _publish/
+   - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: _publish/*
+        draft: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
