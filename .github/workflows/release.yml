@@ -71,17 +71,17 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: rust_peasant
-        path: _publish/
+        path: bins/
     - name: Download golang binaries
       uses: actions/download-artifact@v3
       with:
         name: golang_bins
-        path: _publish/
+        path: bins/
     - run: mv bins/rustpeasant bins/peasant
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        files: _publish/*
+        files: bins/*
         draft: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
