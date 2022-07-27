@@ -1,0 +1,40 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_rust:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: "rustpeasant -> target"
+    - name: Build
+      run: cargo build --verbose
+      working-directory: rustpeasant
+
+  build_golang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup Golang
+      uses: actions/setup-go@v3
+      with:
+        go-version: ~1.18
+    - name: Setup Golang caches
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-golang-
+    - name: Build
+      run: go build -v ./...
