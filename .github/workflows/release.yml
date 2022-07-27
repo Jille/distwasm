@@ -74,7 +74,7 @@ jobs:
       with:
         name: golang_bins
         path: _publish/
-   - name: Release
+    - name: Release
       uses: softprops/action-gh-release@v1
       with:
         files: _publish/*
