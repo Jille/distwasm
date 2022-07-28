@@ -341,6 +341,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "errno"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f639046355ee4f37944e44f60642c6f3a7efa3cf6b78c78a0d989a8ce6c396a1"
+dependencies = [
+ "errno-dragonfly",
+ "libc",
+ "winapi",
+]
+
+[[package]]
+name = "errno-dragonfly"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -953,6 +974,7 @@ dependencies = [
  "nix",
  "privdrop",
  "rlimit",
+ "scheduler",
  "wasmer",
  "wasmer-compiler",
  "wasmer-compiler-cranelift",
@@ -973,6 +995,15 @@ name = "ryu"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3f6f92acf49d1b98f7a81226834412ada05458b7364277387724a237f062695"
+
+[[package]]
+name = "scheduler"
+version = "0.1.3"
+source = "git+https://github.com/Jille/rust-scheduler.git?branch=portability#2df379a01c3a397fd2a86628270c94d860e3a187"
+dependencies = [
+ "errno",
+ "libc",
+]
 
 [[package]]
 name = "scopeguard"

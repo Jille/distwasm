@@ -19,3 +19,6 @@ wasmer-engine-universal = "2.3.0"
 rlimit = "*"
 privdrop = "*"
 nix = "*"
+
+[target.'cfg(target_os ="linux")'.dependencies]
+scheduler = { git = "https://github.com/Jille/rust-scheduler.git", branch = "portability" }

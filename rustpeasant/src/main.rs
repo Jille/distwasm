@@ -61,6 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .user("nobody")
             .apply()?;
     }
+    #[cfg(target_os = "linux")]
+    let _ = scheduler::set_self_policy(scheduler::Policy::Idle, 0);
 
     // Write 0,0,0,0 to stdout
     {
