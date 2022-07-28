@@ -183,7 +183,7 @@ func (b *baron) run(ctx context.Context) error {
 		ch:  make(chan []byte),
 	}
 	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, "../rustpeasant/target/release/rustpeasant")
+	cmd := exec.CommandContext(ctx, "peasant")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
