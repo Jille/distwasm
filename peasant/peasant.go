@@ -53,7 +53,7 @@ func main() {
 		}
 	}
 
-	f := mod.ExportedFunction("processStdio")
+	f := mod.ExportedFunction("ProcessStdio")
 
 	if _, err := os.Stdout.Write([]byte{0, 0, 0, 0}); err != nil {
 		log.Fatalf("Failed to signal readyness: %v", err)
@@ -70,7 +70,7 @@ func main() {
 		size := binary.LittleEndian.Uint32(b[:])
 		_, err := f.Call(ctx, uint64(size))
 		if err != nil {
-			log.Fatalf("Failed to call processFromStdio: %v", err)
+			log.Fatalf("Failed to call ProcessFromStdio: %v", err)
 		}
 	}
 }

@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = instance.exports.get_function("_start")?;
     start.call(&[])?;
 
-    let process_stdio = instance.exports.get_function("processStdio")?;
+    let process_stdio = instance.exports.get_function("ProcessStdio")?;
 
     // Restrict ourselves
     let _ = rlimit::setrlimit(rlimit::Resource::CORE, 0, 0);
@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         so.flush()?;
     }
 
-    // In a loop, read another uint32 and call processStdio(N)
+    // In a loop, read another uint32 and call ProcessStdio(N)
     loop {
         let mut buf = [0u8; 4];
         match stdin().read_exact(&mut buf) {
