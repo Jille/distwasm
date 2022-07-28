@@ -1,6 +1,5 @@
 use std::io::{stdin, stdout, Read, Write, ErrorKind};
 use wasmer::{Instance, Module, Store};
-use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;
 use wasmer_wasi::{Stdin, Stdout, Stderr, WasiState};
 use wasmer_types::{Value};
@@ -15,12 +14,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut wasm_bytes = vec![0u8; wasm_size as usize];
     stdin().read_exact(&mut wasm_bytes)?;
 
-    // Create a Store.
-    // Note that we don't need to specify the engine/compiler if we want to use
-    // the default provided by Wasmer.
-    // You can use `Store::default()` for that.
-    // TODO: Try to use LLVM, then Cranelift, then singlepass.
-    let store = Store::new(&Universal::new(Cranelift::default()).engine());
+    #[cfg(feature = "llvm")]
+    let compiler = wasmer_compiler_llvm::LLVM::default();
+    #[cfg(not(feature = "llvm"))]
+    let compiler = wasmer_compiler_cranelift::Cranelift::default();
+
+    let store = Store::new(&Universal::new(compiler).engine());
 
     // Let's compile the Wasm module.
     let module = Module::new(&store, wasm_bytes)?;
