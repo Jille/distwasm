@@ -16,7 +16,7 @@ jobs:
       with:
         workspaces: "rustpeasant -> target"
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --verbose --target=x86_64-unknown-linux-musl
       working-directory: rustpeasant
 
   build_golang:
