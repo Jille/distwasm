@@ -16,14 +16,14 @@ jobs:
     - uses: Swatinem/rust-cache@v2
       with:
         workspaces: "rustpeasant -> target"
-    - name: Build
-      run: cargo build --verbose --release
+    - run: rustup target add x86_64-unknown-linux-musl
+    - run: cargo build --verbose --release  --target=x86_64-unknown-linux-musl
       working-directory: rustpeasant
     - name: Upload rust peasant binary for release
       uses: actions/upload-artifact@v3
       with:
         name: rust_peasant
-        path: rustpeasant/target/release/rustpeasant
+        path: rustpeasant/target/x86_64-unknown-linux-musl/release/rustpeasant
         if-no-files-found: error
         retention-days: 1
 
