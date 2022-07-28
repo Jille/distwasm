@@ -16,8 +16,7 @@ jobs:
       with:
         workspaces: "rustpeasant -> target"
     - run: rustup target add x86_64-unknown-linux-musl
-    - name: Build
-      run: cargo build --verbose --target=x86_64-unknown-linux-musl
+    - run: cargo build --verbose --target=x86_64-unknown-linux-musl
       working-directory: rustpeasant
 
   build_golang:
