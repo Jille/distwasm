@@ -41,6 +41,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let process_stdio = instance.exports.get_function("processStdio")?;
 
+    // Restrict ourselves
+    let _ = rlimit::setrlimit(rlimit::Resource::CORE, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::FSIZE, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::KQUEUES, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::LOCKS, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::MEMLOCK, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::MSGQUEUE, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::NOFILE, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::NOVMON, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::NPROC, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::NPTS, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::NTHR, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::POSIXLOCKS, 0, 0);
+    let _ = rlimit::setrlimit(rlimit::Resource::UMTXP, 0, 0);
+    if nix::unistd::geteuid().is_root() {
+        privdrop::PrivDrop::default()
+            .chroot("/var/empty")
+            .user("nobody")
+            .apply()?;
+    }
+
     // Write 0,0,0,0 to stdout
     {
         let word: u32 = 0x00000000;
