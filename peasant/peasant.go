@@ -8,15 +8,15 @@ import (
 	"os"
 
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 	"github.com/tetratelabs/wazero/sys"
-	"github.com/tetratelabs/wazero/wasi_snapshot_preview1"
 )
 
 func main() {
 	log.SetFlags(log.Lshortfile)
 	ctx := context.Background()
 
-	r := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfig().WithWasmCore2())
+	r := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().WithWasmCore2())
 	defer r.Close(ctx)
 
 	if _, err := r.NewModuleBuilder("env").Instantiate(ctx, r); err != nil {
