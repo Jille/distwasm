@@ -16,12 +16,8 @@ func main() {
 	log.SetFlags(log.Lshortfile)
 	ctx := context.Background()
 
-	r := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().WithWasmCore2())
+	r := wazero.NewRuntime(ctx)
 	defer r.Close(ctx)
-
-	if _, err := r.NewModuleBuilder("env").Instantiate(ctx, r); err != nil {
-		log.Panicln(err)
-	}
 
 	// Combine the above into our baseline config, overriding defaults.
 	config := wazero.NewModuleConfig().WithStdin(os.Stdin).WithStdout(os.Stdout).WithStderr(os.Stderr).WithArgs("peasant").WithSysWalltime().WithSysNanotime().WithSysNanosleep()
@@ -37,7 +33,7 @@ func main() {
 	}
 
 	// Compile the WebAssembly module using the default configuration.
-	code, err := r.CompileModule(ctx, bin, wazero.NewCompileConfig())
+	code, err := r.CompileModule(ctx, bin)
 	if err != nil {
 		log.Fatalf("Failed to compile binary: %v", err)
 	}
