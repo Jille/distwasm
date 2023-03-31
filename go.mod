@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/Jille/rpcz v0.2.4
 	github.com/spf13/pflag v1.0.5
-	github.com/tetratelabs/wazero v1.0.0-rc.2
+	github.com/tetratelabs/wazero v1.0.1
 	go.uber.org/atomic v1.9.0
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
